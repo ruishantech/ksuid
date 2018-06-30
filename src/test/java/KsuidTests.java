@@ -1,4 +1,4 @@
-import com.amirkhawaja.Ksuid;
+import com.ruishanio.Ksuid;
 import org.junit.Before;
 import org.junit.Test;
 

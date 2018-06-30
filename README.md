@@ -7,7 +7,7 @@ This library can be downloaded from Maven Central by adding the following as a d
 
 ``` xml
 <dependency>
-    <groupId>com.amirkhawaja</groupId>
+    <groupId>com.ruishanio</groupId>
     <artifactId>ksuid</artifactId>
     <version>1.0.0</version>
 </dependency>

@@ -1,4 +1,4 @@
-import com.amirkhawaja.Base62;
+import com.ruishanio.Base62;
 import org.junit.Before;
 import org.junit.Test;
 
