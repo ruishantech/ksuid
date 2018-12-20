@@ -19,7 +19,7 @@ public class Base62 {
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final char CODEFLAG = '9';
     private static StringBuilder out = new StringBuilder();
-    private static Map<Character, Integer> CODEMAP = new HashMap<>();
+    private static Map<Character, Integer> CODEMAP = new HashMap<Character, Integer>();
 
     private static void append(int b) {
         if (b < 61) {
@@ -91,7 +91,7 @@ public class Base62 {
         CODEMAP.put('B', 62);
         CODEMAP.put('C', 63);
 
-        ArrayList<Byte> decodedList = new ArrayList<>();
+        ArrayList<Byte> decodedList = new ArrayList<Byte>();
 
         // 6 bits bytes
         int[] unit = new int[4];
