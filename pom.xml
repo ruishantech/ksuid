@@ -5,11 +5,11 @@
 
     <groupId>com.ruishanio</groupId>
     <artifactId>ksuid</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
 
     <name>ksuid</name>
 
-    <url>https://git.ruishan.io/projects/JAVA/repos/ksuid/browse</url>
+    <url>https://github.com/RuishanTech/ksuid</url>
 
     <description>A Java port of Segment's K-Sortable Globally Unique IDs library written in Go.</description>
 
@@ -48,15 +48,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>nexus-snapshots</id>
-            <url>http://172.16.0.28:8081/repository/maven-snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>nexus-releases</id>
-            <url>http://172.16.0.28:8081/repository/maven-releases/</url>
-        </repository>
-    </distributionManagement>
 </project>
