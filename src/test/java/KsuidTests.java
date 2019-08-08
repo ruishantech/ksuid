@@ -36,7 +36,7 @@ public class KsuidTests {
     @Test
     public void testToEnsureWeDoNotHaveDuplicateKsuidValues() throws IOException {
         final int max = 10000;
-        final ArrayList<String> bucket = new ArrayList<>();
+        final ArrayList<String> bucket = new ArrayList<String>();
         for (int i = 0; i < max; i++) {
             final String uid = ksuid.generate();
             assertEquals(false, bucket.contains(uid));
