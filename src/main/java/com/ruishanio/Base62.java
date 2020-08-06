@@ -1,176 +1,222 @@
 package com.ruishanio;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.ByteArrayOutputStream;
 
 /**
- * Encode to Base62.
- * <p>
- * This is a modified version of the algorithm submitted by John Jiyang Hou to
- * <a href="https://www.codeproject.com/Articles/1076295/Base-Encode">Code Project</a>
- * </p>
+ * A Base62 encoder/decoder.
+ * Copy From https://github.com/seruco/base62
  *
- * @author Amir Khawaja khawaja.amir@gmail.com
+ * @author Sebastian Ruhleder, sebastian@seruco.io
+ *
  */
 public class Base62 {
 
-    private static final String CODES =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final char CODEFLAG = '9';
-    private static StringBuilder out = new StringBuilder();
-    private static Map<Character, Integer> CODEMAP = new HashMap<Character, Integer>();
+    private static final int STANDARD_BASE = 256;
 
-    private static void append(int b) {
-        if (b < 61) {
-            out.append(CODES.charAt(b));
-        } else {
-            out.append(CODEFLAG);
-            out.append(CODES.charAt(b - 61));
-        }
+    private static final int TARGET_BASE = 62;
+
+    private final byte[] alphabet;
+
+    private byte[] lookup;
+
+    private Base62(final byte[] alphabet) {
+        this.alphabet = alphabet;
+        createLookupTable();
     }
 
     /**
-     * Encode to Base62.
+     * Creates a {@link Base62} instance. Defaults to the GMP-style character set.
      *
-     * @param in The value to encode.
-     * @return Encoded string.
+     * @return a {@link Base62} instance.
      */
-    public static String encode(byte[] in) {
-        // Reset output StringBuilder
-        out.setLength(0);
-
-        int b;
-
-        // Loop with 3 bytes as a group
-        for (int i = 0; i < in.length; i += 3) {
-            // #1 char
-            b = (in[i] & 0xFC) >> 2;
-            append(b);
-
-            b = (in[i] & 0x03) << 4;
-            if (i + 1 < in.length) {
-
-                // #2 char
-                b |= (in[i + 1] & 0xF0) >> 4;
-                append(b);
-
-                b = (in[i + 1] & 0x0F) << 2;
-                if (i + 2 < in.length) {
-
-                    // #3 char
-                    b |= (in[i + 2] & 0xC0) >> 6;
-                    append(b);
-
-                    // #4 char
-                    b = in[i + 2] & 0x3F;
-                    append(b);
-
-                } else {
-                    // #3 char, last char
-                    append(b);
-                }
-            } else {
-                // #2 char, last char
-                append(b);
-            }
-        }
-
-        return out.toString();
+    public static Base62 createInstance() {
+        return createInstanceWithGmpCharacterSet();
     }
 
     /**
-     * Decode a previously encoded value.
+     * Creates a {@link Base62} instance using the GMP-style character set.
      *
-     * @param inChars The encoded value.
-     * @return Original value.
+     * @return a {@link Base62} instance.
      */
-    public static byte[] decode(char[] inChars) {
-        // Map for special code followed by CODEFLAG '9' and its code index
-        CODEMAP.put('A', 61);
-        CODEMAP.put('B', 62);
-        CODEMAP.put('C', 63);
+    public static Base62 createInstanceWithGmpCharacterSet() {
+        return new Base62(CharacterSets.GMP);
+    }
 
-        ArrayList<Byte> decodedList = new ArrayList<Byte>();
+    /**
+     * Creates a {@link Base62} instance using the inverted character set.
+     *
+     * @return a {@link Base62} instance.
+     */
+    public static Base62 createInstanceWithInvertedCharacterSet() {
+        return new Base62(CharacterSets.INVERTED);
+    }
 
-        // 6 bits bytes
-        int[] unit = new int[4];
+    /**
+     * Encodes a sequence of bytes in Base62 encoding.
+     *
+     * @param message a byte sequence.
+     * @return a sequence of Base62-encoded bytes.
+     */
+    public byte[] encode(final byte[] message) {
+        final byte[] indices = convert(message, STANDARD_BASE, TARGET_BASE);
 
-        int inputLen = inChars.length;
+        return translate(indices, alphabet);
+    }
 
-        // char counter
-        int n = 0;
+    /**
+     * Decodes a sequence of Base62-encoded bytes.
+     *
+     * @param encoded a sequence of Base62-encoded bytes.
+     * @return a byte sequence.
+     * @throws IllegalArgumentException when {@code encoded} is not encoded over the Base62 alphabet.
+     */
+    public byte[] decode(final byte[] encoded) {
+        if (!isBase62Encoding(encoded)) {
+            throw new IllegalArgumentException("Input is not encoded correctly");
+        }
 
-        // unit counter
-        int m = 0;
+        final byte[] prepared = translate(encoded, lookup);
 
-        // regular char
-        char ch1;
+        return convert(prepared, TARGET_BASE, STANDARD_BASE);
+    }
 
-        // special char
-        char ch2;
+    /**
+     * Checks whether a sequence of bytes is encoded over a Base62 alphabet.
+     *
+     * @param bytes a sequence of bytes.
+     * @return {@code true} when the bytes are encoded over a Base62 alphabet, {@code false} otherwise.
+     */
+    public boolean isBase62Encoding(final byte[] bytes) {
+        if (bytes == null) {
+            return false;
+        }
 
-        Byte b;
-
-        while (n < inputLen) {
-            ch1 = inChars[n];
-            if (ch1 != CODEFLAG) {
-                // regular code
-                unit[m] = CODES.indexOf(ch1);
-                m++;
-                n++;
-            } else {
-                n++;
-                if (n < inputLen) {
-                    ch2 = inChars[n];
-                    if (ch2 != CODEFLAG) {
-                        // special code index 61, 62, 63
-                        unit[m] = CODEMAP.get(ch2);
-                        m++;
-                        n++;
+        for (final byte e : bytes) {
+            if ('0' > e || '9' < e) {
+                if ('a' > e || 'z' < e) {
+                    if ('A' > e || 'Z' < e) {
+                        return false;
                     }
                 }
             }
+        }
 
-            // Add regular bytes with 3 bytes group composed from 4 units with 6 bits.
-            if (m == 4) {
-                b = (byte) ((unit[0] << 2) | (unit[1] >> 4));
-                decodedList.add(b);
-                b = (byte) ((unit[1] << 4) | (unit[2] >> 2));
-                decodedList.add(b);
-                b = (byte) ((unit[2] << 6) | unit[3]);
-                decodedList.add(b);
+        return true;
+    }
 
-                // Reset unit counter
-                m = 0;
+    /**
+     * Uses the elements of a byte array as indices to a dictionary and returns the corresponding values
+     * in form of a byte array.
+     */
+    private byte[] translate(final byte[] indices, final byte[] dictionary) {
+        final byte[] translation = new byte[indices.length];
+
+        for (int i = 0; i < indices.length; i++) {
+            translation[i] = dictionary[indices[i]];
+        }
+
+        return translation;
+    }
+
+    /**
+     * Converts a byte array from a source base to a target base using the alphabet.
+     */
+    private byte[] convert(final byte[] message, final int sourceBase, final int targetBase) {
+        /**
+         * This algorithm is inspired by: http://codegolf.stackexchange.com/a/21672
+         */
+
+        final int estimatedLength = estimateOutputLength(message.length, sourceBase, targetBase);
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(estimatedLength);
+
+        byte[] source = message;
+
+        while (source.length > 0) {
+            final ByteArrayOutputStream quotient = new ByteArrayOutputStream(source.length);
+
+            int remainder = 0;
+
+            for (int i = 0; i < source.length; i++) {
+                final int accumulator = (source[i] & 0xFF) + remainder * sourceBase;
+                final int digit = (accumulator - (accumulator % targetBase)) / targetBase;
+
+                remainder = accumulator % targetBase;
+
+                if (quotient.size() > 0 || digit > 0) {
+                    quotient.write(digit);
+                }
             }
+
+            out.write(remainder);
+
+            source = quotient.toByteArray();
         }
 
-        // Add tail bytes group less than 4 units
-        if (m != 0) {
-            if (m == 1) {
-                b = (byte) ((unit[0] << 2));
-                decodedList.add(b);
-            } else if (m == 2) {
-                b = (byte) ((unit[0] << 2) | (unit[1] >> 4));
-                decodedList.add(b);
-            } else if (m == 3) {
-                b = (byte) ((unit[0] << 2) | (unit[1] >> 4));
-                decodedList.add(b);
-                b = (byte) ((unit[1] << 4) | (unit[2] >> 2));
-                decodedList.add(b);
-            }
+        // pad output with zeroes corresponding to the number of leading zeroes in the message
+        for (int i = 0; i < message.length - 1 && message[i] == 0; i++) {
+            out.write(0);
         }
 
-        Byte[] decodedObj = decodedList.toArray(new Byte[decodedList.size()]);
-        byte[] decoded = new byte[decodedObj.length];
+        return reverse(out.toByteArray());
+    }
 
-        // Convert object Byte array to primitive byte array
-        for (int i = 0; i < decodedObj.length; i++) {
-            decoded[i] = decodedObj[i];
+    /**
+     * Estimates the length of the output in bytes.
+     */
+    private int estimateOutputLength(int inputLength, int sourceBase, int targetBase) {
+        return (int) Math.ceil((Math.log(sourceBase) / Math.log(targetBase)) * inputLength);
+    }
+
+    /**
+     * Reverses a byte array.
+     */
+    private byte[] reverse(final byte[] arr) {
+        final int length = arr.length;
+
+        final byte[] reversed = new byte[length];
+
+        for (int i = 0; i < length; i++) {
+            reversed[length - i - 1] = arr[i];
         }
 
-        return decoded;
+        return reversed;
+    }
+
+    /**
+     * Creates the lookup table from character to index of character in character set.
+     */
+    private void createLookupTable() {
+        lookup = new byte[256];
+
+        for (int i = 0; i < alphabet.length; i++) {
+            lookup[alphabet[i]] = (byte) (i & 0xFF);
+        }
+    }
+
+    private static class CharacterSets {
+
+        private static final byte[] GMP = {
+            (byte) '0', (byte) '1', (byte) '2', (byte) '3', (byte) '4', (byte) '5', (byte) '6', (byte) '7',
+            (byte) '8', (byte) '9', (byte) 'A', (byte) 'B', (byte) 'C', (byte) 'D', (byte) 'E', (byte) 'F',
+            (byte) 'G', (byte) 'H', (byte) 'I', (byte) 'J', (byte) 'K', (byte) 'L', (byte) 'M', (byte) 'N',
+            (byte) 'O', (byte) 'P', (byte) 'Q', (byte) 'R', (byte) 'S', (byte) 'T', (byte) 'U', (byte) 'V',
+            (byte) 'W', (byte) 'X', (byte) 'Y', (byte) 'Z', (byte) 'a', (byte) 'b', (byte) 'c', (byte) 'd',
+            (byte) 'e', (byte) 'f', (byte) 'g', (byte) 'h', (byte) 'i', (byte) 'j', (byte) 'k', (byte) 'l',
+            (byte) 'm', (byte) 'n', (byte) 'o', (byte) 'p', (byte) 'q', (byte) 'r', (byte) 's', (byte) 't',
+            (byte) 'u', (byte) 'v', (byte) 'w', (byte) 'x', (byte) 'y', (byte) 'z'
+        };
+
+        private static final byte[] INVERTED = {
+            (byte) '0', (byte) '1', (byte) '2', (byte) '3', (byte) '4', (byte) '5', (byte) '6', (byte) '7',
+            (byte) '8', (byte) '9', (byte) 'a', (byte) 'b', (byte) 'c', (byte) 'd', (byte) 'e', (byte) 'f',
+            (byte) 'g', (byte) 'h', (byte) 'i', (byte) 'j', (byte) 'k', (byte) 'l', (byte) 'm', (byte) 'n',
+            (byte) 'o', (byte) 'p', (byte) 'q', (byte) 'r', (byte) 's', (byte) 't', (byte) 'u', (byte) 'v',
+            (byte) 'w', (byte) 'x', (byte) 'y', (byte) 'z', (byte) 'A', (byte) 'B', (byte) 'C', (byte) 'D',
+            (byte) 'E', (byte) 'F', (byte) 'G', (byte) 'H', (byte) 'I', (byte) 'J', (byte) 'K', (byte) 'L',
+            (byte) 'M', (byte) 'N', (byte) 'O', (byte) 'P', (byte) 'Q', (byte) 'R', (byte) 'S', (byte) 'T',
+            (byte) 'U', (byte) 'V', (byte) 'W', (byte) 'X', (byte) 'Y', (byte) 'Z'
+        };
+
     }
 
 }
