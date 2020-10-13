@@ -8,11 +8,27 @@ This library can be downloaded from Maven Central by adding the following as a d
 <dependency>
     <groupId>com.ruishanio</groupId>
     <artifactId>ksuid</artifactId>
-    <version>1.1.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
 Quick Start
+``` kotlin
+val ksuid = Ksuid()
+val uid = ksuid.generate()
+// e.g. output: Be785NYYxP29BJiAJPupfsXuGpR
+
+val decoded = ksuid.print(uid)
+// e.g. output: Time: 2017-07-08T21:13:08Z[UTC]
+//              Timestamp: 1499548388
+//              Payload: [-42, 24, -60, -3, -66, 38, 32, 9, 62, -22, 95, -79, 123, -122, -91, 0]
+
+val components = ksuid.parse(uid)
+// components.getTimestamp();
+// components.getPayload();
+```
+
+
 ``` java
 final Ksuid ksuid = new Ksuid();
 final String uid = ksuid.generate();
